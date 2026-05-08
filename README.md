@@ -1,58 +1,174 @@
-<p align="center"><a href="https://laravel.com" target="_blank"><img src="https://raw.githubusercontent.com/laravel/art/master/logo-lockup/5%20SVG/2%20CMYK/1%20Full%20Color/laravel-logolockup-cmyk-red.svg" width="400" alt="Laravel Logo"></a></p>
+# Private Video Course Library (Laravel + Nginx)
 
-<p align="center">
-<a href="https://github.com/laravel/framework/actions"><img src="https://github.com/laravel/framework/workflows/tests/badge.svg" alt="Build Status"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/dt/laravel/framework" alt="Total Downloads"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/v/laravel/framework" alt="Latest Stable Version"></a>
-<a href="https://packagist.org/packages/laravel/framework"><img src="https://img.shields.io/packagist/l/laravel/framework" alt="License"></a>
-</p>
+Private Laravel application for browsing and watching locally uploaded course files on a VPS.
 
-## About Laravel
+## What This App Does
 
-Laravel is a web application framework with expressive, elegant syntax. We believe development must be an enjoyable and creative experience to be truly fulfilling. Laravel takes the pain out of development by easing common tasks used in many web projects, such as:
+- Session login (private access only).
+- Scans a real filesystem course directory and stores metadata only.
+- Supports mixed course layouts:
+  - root-level videos
+  - chapter/section folders
+  - mixed videos + resources
+  - nested folders
+- Serves videos/resources through **Nginx internal location** using `X-Accel-Redirect`.
+- HTML5 player page with:
+  - play/pause, seek, fullscreen, playback speed (native controls)
+  - lesson sidebar/navigation
+  - resume from last watched position
+- Resource behavior:
+  - `.pdf` opens inline in a new tab
+  - `.txt` and `.go` can be previewed in an in-app dialog
+  - other resource types download normally
+- Stores lesson progress per authenticated user.
 
-- [Simple, fast routing engine](https://laravel.com/docs/routing).
-- [Powerful dependency injection container](https://laravel.com/docs/container).
-- Multiple back-ends for [session](https://laravel.com/docs/session) and [cache](https://laravel.com/docs/cache) storage.
-- Expressive, intuitive [database ORM](https://laravel.com/docs/eloquent).
-- Database agnostic [schema migrations](https://laravel.com/docs/migrations).
-- [Robust background job processing](https://laravel.com/docs/queues).
-- [Real-time event broadcasting](https://laravel.com/docs/broadcasting).
+## Architecture
 
-Laravel is accessible, powerful, and provides tools required for large, robust applications.
+- **Laravel**:
+  - Auth, course metadata, section/lesson/resource indexing, access checks, UI.
+  - Returns protected internal URLs via `X-Accel-Redirect`.
+- **Nginx**:
+  - Serves actual file bytes directly from disk (`/srv/courses` by default).
+  - Handles byte-range requests for video seeking (no PHP streaming).
+- **Database**:
+  - Stores metadata/references only, never video content.
 
-## Learning Laravel
+## Data Model
 
-Laravel has the most extensive and thorough [documentation](https://laravel.com/docs) and video tutorial library of all modern web application frameworks, making it a breeze to get started with the framework.
+- `courses`
+- `course_sections`
+- `lessons`
+- `resources`
+- `lesson_progress`
 
-In addition, [Laracasts](https://laracasts.com) contains thousands of video tutorials on a range of topics including Laravel, modern PHP, unit testing, and JavaScript. Boost your skills by digging into our comprehensive video library.
+Each record tracks source path metadata, ordering, and missing-file state (`is_missing`, `last_seen_at`).
 
-You can also watch bite-sized lessons with real-world projects on [Laravel Learn](https://laravel.com/learn), where you will be guided through building a Laravel application from scratch while learning PHP fundamentals.
+## Environment Configuration
 
-## Agentic Development
+Add to `.env`:
 
-Laravel's predictable structure and conventions make it ideal for AI coding agents like Claude Code, Cursor, and GitHub Copilot. Install [Laravel Boost](https://laravel.com/docs/ai) to supercharge your AI workflow:
-
-```bash
-composer require laravel/boost --dev
-
-php artisan boost:install
+```env
+COURSES_ROOT=/srv/courses
+COURSE_INTERNAL_MEDIA_PREFIX=/_protected_media
+COURSE_STREAM_DRIVER=auto
+COURSE_PREVIEW_ENABLED=true
+COURSE_PREVIEW_DIRECTORY=course-previews
+COURSE_FFMPEG_BINARY=ffmpeg
+COURSE_FFPROBE_BINARY=ffprobe
+COURSE_VIDEO_EXTENSIONS=mp4,mkv,webm,m4v,mov,avi,flv,ts,wmv
+COURSE_RESOURCE_EXTENSIONS=pdf,zip,rar,7z,tar,gz,doc,docx,ppt,pptx,xls,xlsx,txt,md,srt,vtt,jpg,jpeg,png,svg,webp,json,yaml,yml,xml,csv,sql,go,py,js,ts,tsx,jsx,java,kt,cs,cpp,c,h,hpp,php,sh,bat,ps1,proto
+COURSE_RESOURCE_EXCLUDE_DIRS=.git,node_modules,vendor,dist,build,target,.idea,.vscode,__pycache__,.next,.nuxt,coverage
 ```
 
-Boost provides your agent 15+ tools and skills that help agents build Laravel applications while following best practices.
+## Setup (VPS)
 
-## Contributing
+```bash
+cd /var/www/streamapp
+composer install --no-dev --optimize-autoloader
+cp .env.example .env
+php artisan key:generate
+php artisan migrate --force
+php artisan config:cache
+php artisan route:cache
+```
 
-Thank you for considering contributing to the Laravel framework! The contribution guide can be found in the [Laravel documentation](https://laravel.com/docs/contributions).
+Create your private user:
 
-## Code of Conduct
+```bash
+php artisan tinker --execute="App\Models\User::query()->updateOrCreate(['email'=>'you@example.com'], ['name'=>'Owner', 'password'=>bcrypt('CHANGE_ME_NOW')]);"
+```
 
-In order to ensure that the Laravel community is welcoming to all, please review and abide by the [Code of Conduct](https://laravel.com/docs/contributions#code-of-conduct).
+## Scan/Sync Courses
 
-## Security Vulnerabilities
+Initial import:
 
-If you discover a security vulnerability within Laravel, please send an e-mail to Taylor Otwell via [taylor@laravel.com](mailto:taylor@laravel.com). All security vulnerabilities will be promptly addressed.
+```bash
+php artisan courses:scan /srv/courses --no-thumbnails
+```
 
-## License
+Dry run:
 
-The Laravel framework is open-sourced software licensed under the [MIT license](https://opensource.org/licenses/MIT).
+```bash
+php artisan courses:scan /srv/courses --dry-run --no-thumbnails
+```
+
+Try thumbnail generation (if ffmpeg is installed):
+
+```bash
+php artisan courses:scan /srv/courses --with-thumbnails
+```
+
+Re-run scan whenever you add/remove files. The scanner:
+
+- upserts metadata
+- preserves manual lesson/course display titles
+- marks removed files as `is_missing=true`
+
+## Nginx Configuration
+
+Example production config: [docs/nginx-course-library.conf](docs/nginx-course-library.conf)
+
+Critical parts:
+
+- `location /_protected_media/ { internal; alias /srv/courses/; }`
+- Laravel sends `X-Accel-Redirect: /_protected_media/<encoded-relative-path>`
+- Browser requests are authenticated through Laravel first
+- Nginx serves bytes directly from disk
+
+### Byte-range and Seeking
+
+Browsers request partial file segments using the `Range` header (for example when seeking).
+Nginx responds with partial content (`206`) and only the requested byte range.
+This avoids full-file download and makes seeking fast.
+
+## Routes
+
+- `GET /login`
+- `POST /login`
+- `POST /logout`
+- `GET /courses`
+- `GET /courses/{course}`
+- `GET /lessons/{lesson}`
+- `POST /progress/{lesson}`
+- `GET /stream/lessons/{lesson}`
+- `GET /stream/resources/{resource}`
+- `GET /lessons/{lesson}/thumbnail`
+
+All course/media routes require authentication.
+
+## Security Notes
+
+- Course files must stay **outside** Laravel `public/`.
+- Direct video/resource URLs are never exposed as absolute server paths.
+- Stream/download endpoints are ID-based and auth-guarded.
+- Path traversal is blocked by server-side normalized path checks.
+- Nginx internal location blocks unauthenticated direct media access.
+
+## Local Development Without Nginx
+
+If you run with `php artisan serve`, Nginx internal redirects are unavailable.
+Set this in `.env`:
+
+```env
+COURSE_STREAM_DRIVER=laravel
+```
+
+For VPS/production with Nginx `internal` location, use:
+
+```env
+COURSE_STREAM_DRIVER=accel
+```
+
+## Optional ffmpeg/ffprobe
+
+If `ffprobe` exists, scanner attempts duration extraction.
+If `ffmpeg` exists and previews are enabled, scanner generates lesson thumbnail posters.
+If tools are missing, scan still succeeds and metadata fields remain nullable.
+
+## Testing
+
+```bash
+php artisan test
+```
+
+If tests fail with `could not find driver` on SQLite, install/enable `pdo_sqlite` for your PHP CLI.
