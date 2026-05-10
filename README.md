@@ -102,6 +102,19 @@ docker compose exec app php artisan migrate --force
 http://localhost:8080
 ```
 
+If port `8080` is busy, run on another port (example `8081`):
+
+```bash
+WEB_PORT=8081 docker compose up -d --build
+```
+
+PowerShell equivalent:
+
+```powershell
+$env:WEB_PORT=8081
+docker compose up -d --build
+```
+
 5. Scan mounted course files:
 
 ```bash
