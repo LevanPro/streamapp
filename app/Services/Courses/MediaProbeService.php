@@ -108,4 +108,59 @@ class MediaProbeService
 
         return $process->isSuccessful() && is_file($thumbnailAbsolutePath);
     }
+
+    public function createPreviewSprite(
+        string $videoPath,
+        string $spriteAbsolutePath,
+        int $frameWidth,
+        int $frameHeight,
+        int $columns,
+        int $rows,
+        int $frameCount,
+        float $sampleFps
+    ): bool {
+        if (! $this->hasFfmpeg()) {
+            return false;
+        }
+
+        $directory = dirname($spriteAbsolutePath);
+        if (! is_dir($directory)) {
+            @mkdir($directory, 0775, true);
+        }
+
+        $binary = (string) config('courses.ffmpeg_binary', 'ffmpeg');
+        $fps = max($sampleFps, 0.0001);
+        $filter = sprintf(
+            'fps=%s,scale=%d:%d:force_original_aspect_ratio=decrease,pad=%d:%d:(ow-iw)/2:(oh-ih)/2:color=black,tile=%dx%d:nb_frames=%d',
+            number_format($fps, 6, '.', ''),
+            max(16, $frameWidth),
+            max(16, $frameHeight),
+            max(16, $frameWidth),
+            max(16, $frameHeight),
+            max(1, $columns),
+            max(1, $rows),
+            max(1, $frameCount)
+        );
+
+        $process = new Process([
+            $binary,
+            '-hide_banner',
+            '-loglevel',
+            'error',
+            '-y',
+            '-i',
+            $videoPath,
+            '-vf',
+            $filter,
+            '-frames:v',
+            '1',
+            '-q:v',
+            '2',
+            $spriteAbsolutePath,
+        ]);
+        $process->setTimeout(120);
+        $process->run();
+
+        return $process->isSuccessful() && is_file($spriteAbsolutePath);
+    }
 }

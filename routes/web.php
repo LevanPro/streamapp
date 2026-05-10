@@ -31,4 +31,6 @@ Route::middleware('auth')->group(function (): void {
     Route::get('/stream/resources/{resource}', [StreamController::class, 'resource'])->name('stream.resources');
     Route::get('/resources/{resource}/preview', [StreamController::class, 'previewTextResource'])->name('resources.preview');
     Route::get('/lessons/{lesson}/thumbnail', [StreamController::class, 'lessonThumbnail'])->name('lessons.thumbnail');
+    Route::get('/lessons/{lesson}/preview-manifest', [StreamController::class, 'lessonPreviewManifest'])->name('lessons.preview.manifest');
+    Route::get('/lessons/{lesson}/preview-sprite', [StreamController::class, 'lessonPreviewSprite'])->name('lessons.preview.sprite');
 });

@@ -8,6 +8,11 @@ return [
 
     'preview_enabled' => (bool) env('COURSE_PREVIEW_ENABLED', true),
     'preview_directory' => env('COURSE_PREVIEW_DIRECTORY', 'course-previews'),
+    'preview_width' => (int) env('COURSE_PREVIEW_WIDTH', 160),
+    'preview_height' => (int) env('COURSE_PREVIEW_HEIGHT', 90),
+    'preview_columns' => (int) env('COURSE_PREVIEW_COLUMNS', 10),
+    'preview_interval_seconds' => (float) env('COURSE_PREVIEW_INTERVAL_SECONDS', 10),
+    'preview_max_frames' => (int) env('COURSE_PREVIEW_MAX_FRAMES', 120),
     'ffmpeg_binary' => env('COURSE_FFMPEG_BINARY', 'ffmpeg'),
     'ffprobe_binary' => env('COURSE_FFPROBE_BINARY', 'ffprobe'),
 

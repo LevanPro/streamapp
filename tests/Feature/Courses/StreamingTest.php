@@ -15,6 +15,7 @@ class StreamingTest extends TestCase
     use RefreshDatabase;
 
     private string $scanRoot;
+    private array $temporaryPaths = [];
 
     protected function setUp(): void
     {
@@ -27,6 +28,16 @@ class StreamingTest extends TestCase
     protected function tearDown(): void
     {
         $this->removeDirectory($this->scanRoot);
+        foreach ($this->temporaryPaths as $path) {
+            if (is_dir($path)) {
+                $this->removeDirectory($path);
+                continue;
+            }
+
+            if (is_file($path)) {
+                @unlink($path);
+            }
+        }
         parent::tearDown();
     }
 
@@ -59,6 +70,48 @@ class StreamingTest extends TestCase
                 'Content-Disposition',
                 "inline; filename=\"slides.pdf\"; filename*=UTF-8''slides.pdf"
             );
+    }
+
+    public function test_authenticated_user_can_fetch_lesson_preview_manifest_and_sprite(): void
+    {
+        [$lesson] = $this->seedCourseMedia();
+        $user = User::factory()->create();
+
+        $relativeDir = 'course-previews/test-'.uniqid();
+        $absoluteDir = storage_path('app/private/'.$relativeDir);
+        mkdir($absoluteDir, 0775, true);
+        $this->temporaryPaths[] = $absoluteDir;
+
+        $relativeSpritePath = $relativeDir.'/sprite.jpg';
+        $relativeManifestPath = $relativeDir.'/manifest.json';
+
+        file_put_contents(storage_path('app/private/'.$relativeSpritePath), 'sprite-bytes');
+        file_put_contents(storage_path('app/private/'.$relativeManifestPath), json_encode([
+            'version' => 1,
+            'duration_seconds' => 120,
+            'interval_seconds' => 10,
+            'frame_count' => 12,
+            'columns' => 6,
+            'rows' => 2,
+            'frame_width' => 160,
+            'frame_height' => 90,
+            'sprite_path' => $relativeSpritePath,
+        ], JSON_THROW_ON_ERROR));
+
+        $lesson->update([
+            'preview_manifest_path' => $relativeManifestPath,
+        ]);
+
+        $this->actingAs($user)
+            ->get(route('lessons.preview.manifest', $lesson))
+            ->assertOk()
+            ->assertJsonPath('frame_count', 12)
+            ->assertJsonPath('sprite_url', route('lessons.preview.sprite', $lesson));
+
+        $this->actingAs($user)
+            ->get(route('lessons.preview.sprite', $lesson))
+            ->assertOk()
+            ->assertHeader('Cache-Control', 'private, max-age=86400');
     }
 
     public function test_traversal_like_paths_are_rejected(): void

@@ -129,6 +129,35 @@ class StreamController extends Controller
         ]);
     }
 
+    public function lessonPreviewManifest(Lesson $lesson): JsonResponse
+    {
+        $manifest = $this->loadLessonPreviewManifest($lesson);
+        unset($manifest['sprite_path']);
+        $manifest['sprite_url'] = route('lessons.preview.sprite', $lesson);
+
+        return response()->json($manifest, 200, [
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
+    public function lessonPreviewSprite(Lesson $lesson): Response
+    {
+        $manifest = $this->loadLessonPreviewManifest($lesson);
+        $spriteRelativePath = trim((string) ($manifest['sprite_path'] ?? ''), '/');
+        if ($spriteRelativePath === '') {
+            abort(404);
+        }
+
+        $absoluteSpritePath = storage_path('app/private/'.$spriteRelativePath);
+        if (! is_file($absoluteSpritePath)) {
+            abort(404);
+        }
+
+        return response()->file($absoluteSpritePath, [
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
     private function accelResponse(string $relativePath, string $mimeType, string $disposition, string $filename): Response
     {
         $encodedPath = $this->encodeForInternalUri($relativePath);
@@ -214,5 +243,36 @@ class StreamController extends Controller
         $extension = $resource->extension ?? pathinfo($resource->filename, PATHINFO_EXTENSION);
 
         return strtolower((string) $extension);
+    }
+
+    /**
+     * @return array<string, mixed>
+     */
+    private function loadLessonPreviewManifest(Lesson $lesson): array
+    {
+        $lesson->load('course');
+        abort_if($lesson->is_missing || $lesson->course->is_missing || ! $lesson->preview_manifest_path, 404);
+
+        $absoluteManifestPath = storage_path('app/private/'.$lesson->preview_manifest_path);
+        if (! is_file($absoluteManifestPath)) {
+            abort(404);
+        }
+
+        $manifestContent = file_get_contents($absoluteManifestPath);
+        if ($manifestContent === false) {
+            abort(404);
+        }
+
+        try {
+            $manifest = json_decode($manifestContent, true, 512, JSON_THROW_ON_ERROR);
+        } catch (\JsonException) {
+            abort(404);
+        }
+
+        if (! is_array($manifest)) {
+            abort(404);
+        }
+
+        return $manifest;
     }
 }

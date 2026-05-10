@@ -344,7 +344,13 @@ class CourseScanner
                 }
             }
 
-            $this->maybeGenerateThumbnail($course, $lesson, $videoFile['absolute_path'], $generateThumbnails);
+            $this->maybeGeneratePreviewAssets(
+                course: $course,
+                lesson: $lesson,
+                videoAbsolutePath: $videoFile['absolute_path'],
+                durationSeconds: $duration,
+                generateThumbnails: $generateThumbnails
+            );
         }
     }
 
@@ -535,10 +541,11 @@ class CourseScanner
         return CourseSection::ROOT_RELATIVE_PATH;
     }
 
-    private function maybeGenerateThumbnail(
+    private function maybeGeneratePreviewAssets(
         Course $course,
         Lesson $lesson,
         string $videoAbsolutePath,
+        ?float $durationSeconds,
         ?bool $generateThumbnails
     ): void {
         $previewEnabled = (bool) config('courses.preview_enabled', true);
@@ -550,12 +557,13 @@ class CourseScanner
             return;
         }
 
-        $relativeThumbnailPath = sprintf(
-            '%s/%d/%s.jpg',
-            trim((string) config('courses.preview_directory', 'course-previews'), '/'),
-            $course->id,
-            sha1($lesson->relative_path)
-        );
+        $previewDirectory = trim((string) config('courses.preview_directory', 'course-previews'), '/');
+        if ($previewDirectory === '') {
+            return;
+        }
+
+        $basePath = sprintf('%s/%d/%s', $previewDirectory, $course->id, sha1($lesson->relative_path));
+        $relativeThumbnailPath = $basePath.'.jpg';
         $absoluteThumbnailPath = storage_path('app/private/'.$relativeThumbnailPath);
 
         if (! is_file($absoluteThumbnailPath)) {
@@ -565,10 +573,92 @@ class CourseScanner
             }
         }
 
+        $manifestPath = $this->generateTimelinePreviewManifest(
+            lesson: $lesson,
+            videoAbsolutePath: $videoAbsolutePath,
+            durationSeconds: $durationSeconds,
+            basePath: $basePath
+        );
+
         if ($lesson->thumbnail_path !== $relativeThumbnailPath) {
             $lesson->thumbnail_path = $relativeThumbnailPath;
+        }
+        if ($manifestPath !== null && $lesson->preview_manifest_path !== $manifestPath) {
+            $lesson->preview_manifest_path = $manifestPath;
+        }
+
+        if ($lesson->isDirty(['thumbnail_path', 'preview_manifest_path'])) {
             $lesson->save();
         }
+    }
+
+    private function generateTimelinePreviewManifest(
+        Lesson $lesson,
+        string $videoAbsolutePath,
+        ?float $durationSeconds,
+        string $basePath
+    ): ?string {
+        $duration = $durationSeconds ?? $lesson->duration_seconds;
+        if (! is_numeric($duration) || (float) $duration <= 0) {
+            return null;
+        }
+        $duration = (float) $duration;
+
+        $frameWidth = max(48, (int) config('courses.preview_width', 160));
+        $frameHeight = max(27, (int) config('courses.preview_height', 90));
+        $columns = max(1, (int) config('courses.preview_columns', 10));
+        $maxFrames = max(8, (int) config('courses.preview_max_frames', 120));
+        $baseInterval = max(1.0, (float) config('courses.preview_interval_seconds', 10));
+
+        $targetFrameCount = (int) ceil($duration / $baseInterval);
+        $frameCount = max(1, min($maxFrames, $targetFrameCount));
+        $intervalSeconds = max($duration / $frameCount, 0.001);
+        $rows = (int) ceil($frameCount / $columns);
+        $sampleFps = 1 / $intervalSeconds;
+
+        $relativeSpritePath = $basePath.'_sprite.jpg';
+        $absoluteSpritePath = storage_path('app/private/'.$relativeSpritePath);
+
+        if (! is_file($absoluteSpritePath)) {
+            $spriteCreated = $this->mediaProbeService->createPreviewSprite(
+                videoPath: $videoAbsolutePath,
+                spriteAbsolutePath: $absoluteSpritePath,
+                frameWidth: $frameWidth,
+                frameHeight: $frameHeight,
+                columns: $columns,
+                rows: $rows,
+                frameCount: $frameCount,
+                sampleFps: $sampleFps
+            );
+            if (! $spriteCreated) {
+                return null;
+            }
+        }
+
+        $relativeManifestPath = $basePath.'_manifest.json';
+        $absoluteManifestPath = storage_path('app/private/'.$relativeManifestPath);
+
+        $manifestDirectory = dirname($absoluteManifestPath);
+        if (! is_dir($manifestDirectory)) {
+            @mkdir($manifestDirectory, 0775, true);
+        }
+
+        $manifest = [
+            'version' => 1,
+            'duration_seconds' => round($duration, 3),
+            'interval_seconds' => round($intervalSeconds, 3),
+            'frame_count' => $frameCount,
+            'columns' => $columns,
+            'rows' => $rows,
+            'frame_width' => $frameWidth,
+            'frame_height' => $frameHeight,
+            'sprite_path' => $relativeSpritePath,
+        ];
+
+        $encodedManifest = json_encode($manifest, JSON_UNESCAPED_SLASHES | JSON_THROW_ON_ERROR);
+        file_put_contents($absoluteManifestPath, $encodedManifest);
+
+        return $relativeManifestPath;
     }
 
     private function markMissingRecords(string $scanRoot, CarbonImmutable $scanAt, ScanSummary $summary): void

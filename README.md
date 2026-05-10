@@ -53,6 +53,11 @@ COURSE_INTERNAL_MEDIA_PREFIX=/_protected_media
 COURSE_STREAM_DRIVER=auto
 COURSE_PREVIEW_ENABLED=true
 COURSE_PREVIEW_DIRECTORY=course-previews
+COURSE_PREVIEW_WIDTH=160
+COURSE_PREVIEW_HEIGHT=90
+COURSE_PREVIEW_COLUMNS=10
+COURSE_PREVIEW_INTERVAL_SECONDS=10
+COURSE_PREVIEW_MAX_FRAMES=120
 COURSE_FFMPEG_BINARY=ffmpeg
 COURSE_FFPROBE_BINARY=ffprobe
 COURSE_VIDEO_EXTENSIONS=mp4,mkv,webm,m4v,mov,avi,flv,ts,wmv
@@ -115,10 +120,10 @@ $env:WEB_PORT=8081
 docker compose up -d --build
 ```
 
-5. Scan mounted course files:
+5. Scan mounted course files (generate poster + timeline hover previews):
 
 ```bash
-docker compose exec app php artisan courses:scan /srv/courses --no-thumbnails
+docker compose exec app php artisan courses:scan /srv/courses --with-thumbnails
 ```
 
 Notes:
@@ -135,10 +140,10 @@ php artisan tinker --execute="App\Models\User::query()->updateOrCreate(['email'=
 
 ## Scan/Sync Courses
 
-Initial import:
+Initial import (with preview generation):
 
 ```bash
-php artisan courses:scan /srv/courses --no-thumbnails
+php artisan courses:scan /srv/courses --with-thumbnails
 ```
 
 Dry run:
@@ -147,10 +152,10 @@ Dry run:
 php artisan courses:scan /srv/courses --dry-run --no-thumbnails
 ```
 
-Try thumbnail generation (if ffmpeg is installed):
+Disable thumbnail/preview generation:
 
 ```bash
-php artisan courses:scan /srv/courses --with-thumbnails
+php artisan courses:scan /srv/courses --no-thumbnails
 ```
 
 Re-run scan whenever you add/remove files. The scanner:
@@ -188,6 +193,8 @@ This avoids full-file download and makes seeking fast.
 - `GET /stream/lessons/{lesson}`
 - `GET /stream/resources/{resource}`
 - `GET /lessons/{lesson}/thumbnail`
+- `GET /lessons/{lesson}/preview-manifest`
+- `GET /lessons/{lesson}/preview-sprite`
 
 All course/media routes require authentication.
 
@@ -217,7 +224,10 @@ COURSE_STREAM_DRIVER=accel
 ## Optional ffmpeg/ffprobe
 
 If `ffprobe` exists, scanner attempts duration extraction.
-If `ffmpeg` exists and previews are enabled, scanner generates lesson thumbnail posters.
+If `ffmpeg` exists and previews are enabled, scanner generates:
+
+- lesson poster images (`poster=...`)
+- timeline hover preview sprites + JSON manifests
 If tools are missing, scan still succeeds and metadata fields remain nullable.
 
 ## Testing
