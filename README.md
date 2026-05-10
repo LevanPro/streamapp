@@ -72,6 +72,48 @@ php artisan config:cache
 php artisan route:cache
 ```
 
+## Docker Compose
+
+Run the app with PHP-FPM + Nginx + MySQL using the included Docker setup.
+
+1. Prepare env and media folder:
+
+```bash
+cp .env.example .env
+mkdir -p courses
+```
+
+2. Start containers:
+
+```bash
+docker compose up -d --build
+```
+
+3. Initialize Laravel (first run):
+
+```bash
+docker compose exec app php artisan key:generate
+docker compose exec app php artisan migrate --force
+```
+
+4. Open app:
+
+```text
+http://localhost:8080
+```
+
+5. Scan mounted course files:
+
+```bash
+docker compose exec app php artisan courses:scan /srv/courses --no-thumbnails
+```
+
+Notes:
+
+- Host `./courses` is mounted read-only to `/srv/courses` in both `app` and `nginx` containers.
+- Streaming uses `COURSE_STREAM_DRIVER=accel` in compose, so Nginx handles protected media bytes.
+- MySQL is exposed on host port `3307`.
+
 Create your private user:
 
 ```bash
