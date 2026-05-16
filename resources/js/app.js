@@ -1,1 +1,1 @@
-//
+import './lesson-player.js';

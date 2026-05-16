@@ -1,12 +1,51 @@
 @once
-    <div id="resourcePreviewModal" style="display:none; position:fixed; inset:0; z-index:1200; background:rgba(3, 11, 18, 0.65); padding:18px;">
-        <div class="panel" style="width:min(960px, 98vw); margin:0 auto; max-height:95vh; display:flex; flex-direction:column;">
-            <div style="display:flex; justify-content:space-between; align-items:center; gap:10px; padding:12px 14px; border-bottom:1px solid var(--line);">
+    <style>
+        #resourcePreviewModal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            z-index: 1200;
+            background: rgba(3, 11, 18, 0.66);
+            padding: 18px;
+        }
+        .resource-preview-card {
+            width: min(960px, 98vw);
+            margin: 0 auto;
+            max-height: 95vh;
+            display: flex;
+            flex-direction: column;
+            background: #ffffff;
+        }
+        .resource-preview-head {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 10px;
+            padding: 12px 14px;
+            border-bottom: 1px solid var(--line);
+        }
+        .resource-preview-body {
+            padding: 12px 14px;
+            overflow: auto;
+            min-height: 240px;
+        }
+        .resource-preview-body pre {
+            margin: 0;
+            font-size: 0.9rem;
+            line-height: 1.45;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+    </style>
+
+    <div id="resourcePreviewModal">
+        <div class="panel resource-preview-card">
+            <div class="resource-preview-head">
                 <strong id="resourcePreviewTitle">Preview</strong>
                 <button type="button" id="resourcePreviewClose" class="btn btn-outline" style="padding:6px 10px;">Close</button>
             </div>
-            <div style="padding:12px 14px; overflow:auto; min-height:240px;">
-                <pre id="resourcePreviewContent" style="margin:0; font-size:0.9rem; line-height:1.45; white-space:pre-wrap; word-break:break-word;"></pre>
+            <div class="resource-preview-body">
+                <pre id="resourcePreviewContent"></pre>
             </div>
             <div id="resourcePreviewMeta" class="muted" style="padding:8px 14px 12px; font-size:0.8rem;"></div>
         </div>

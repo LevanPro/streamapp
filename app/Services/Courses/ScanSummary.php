@@ -24,6 +24,7 @@ class ScanSummary
         'resources_updated' => 0,
         'resources_unchanged' => 0,
         'resources_missing' => 0,
+        'previews_dispatched' => 0,
         'errors' => 0,
     ];
 

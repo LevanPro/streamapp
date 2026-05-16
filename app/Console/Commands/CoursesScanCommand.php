@@ -74,6 +74,7 @@ class CoursesScanCommand extends Command
                 ['Resources updated', $summary->stats['resources_updated']],
                 ['Resources unchanged', $summary->stats['resources_unchanged']],
                 ['Resources marked missing', $summary->stats['resources_missing']],
+                ['Preview jobs dispatched', $summary->stats['previews_dispatched']],
                 ['Errors', $summary->stats['errors']],
             ]
         );
@@ -90,6 +91,13 @@ class CoursesScanCommand extends Command
             $this->comment('Dry run complete. No database changes were saved.');
         } else {
             $this->components->info('Scan complete.');
+
+            if ($summary->stats['previews_dispatched'] > 0) {
+                $this->components->info(sprintf(
+                    'Dispatched %d preview job(s). Run "php artisan queue:work" to generate posters and sprites.',
+                    $summary->stats['previews_dispatched']
+                ));
+            }
         }
 
         return self::SUCCESS;
