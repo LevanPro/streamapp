@@ -3,10 +3,10 @@ import { Head, Link } from '@inertiajs/react';
 import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout';
 import Card from '@/Components/ui/Card';
-import Badge from '@/Components/ui/Badge';
 import ResourceItem from '@/Components/ResourceItem';
 import ResourcePreviewDialog from '@/Components/ResourcePreviewDialog';
-import Reveal from '@/Components/effects/Reveal';
+import GradientText from '@/Components/reactbits/GradientText';
+import AnimatedContent from '@/Components/reactbits/AnimatedContent';
 import { formatClock } from '@/lib/format';
 
 export default function Show({ course, courseResources, sections, firstLessonId }) {
@@ -17,43 +17,53 @@ export default function Show({ course, courseResources, sections, firstLessonId 
         courseResources.length +
         sections.reduce((n, s) => n + s.resources.length, 0);
 
+    const chip =
+        'rounded-full border border-line-strong bg-elevated/60 px-2.5 py-1 text-xs font-semibold text-muted';
+
     return (
         <AppLayout>
             <Head title={course.display_title} />
 
-            <Reveal as={Card} className="mb-4 p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+            <Card className="relative mb-5 overflow-hidden p-7">
+                <div className="pointer-events-none absolute -right-20 -top-24 h-64 w-64 rounded-full bg-accent/15 blur-3xl" />
+                <div className="relative flex flex-wrap items-end justify-between gap-4">
                     <div>
                         <Link
                             href={route('courses.index')}
-                            className="inline-flex items-center gap-1.5 text-sm font-semibold text-[#325486] hover:text-[#1d3760]"
+                            className="text-sm font-semibold text-muted transition hover:text-accent"
                         >
                             ← All courses
                         </Link>
-                        <h1 className="my-1.5 text-2xl font-extrabold">
-                            {course.display_title}
+                        <h1 className="mt-2 text-3xl font-extrabold">
+                            <GradientText>{course.display_title}</GradientText>
                         </h1>
-                        <div className="text-muted">{course.relative_path}</div>
-                        <div className="mt-3 flex flex-wrap gap-2">
-                            <Badge>{sections.length} sections</Badge>
-                            <Badge tone="info">{lessonCount} lessons</Badge>
-                            <Badge tone="warm">{resourceCount} resources</Badge>
+                        <div className="mt-1 text-sm text-muted">
+                            {course.relative_path}
+                        </div>
+                        <div className="mt-4 flex flex-wrap gap-2">
+                            <span className={chip}>
+                                {sections.length} sections
+                            </span>
+                            <span className={chip}>{lessonCount} lessons</span>
+                            <span className={chip}>
+                                {resourceCount} resources
+                            </span>
                         </div>
                     </div>
                     {firstLessonId && (
                         <Link
                             href={route('lessons.show', firstLessonId)}
-                            className="inline-flex items-center justify-center gap-2 rounded-soft bg-accent px-4 py-2 text-sm font-semibold text-white shadow-accent transition hover:brightness-105"
+                            className="inline-flex items-center gap-2 rounded-soft bg-accent px-5 py-2.5 text-sm font-semibold text-accent-ink shadow-accent transition hover:bg-accent-dark"
                         >
-                            Start Watching
+                            ▶ Start Watching
                         </Link>
                     )}
                 </div>
-            </Reveal>
+            </Card>
 
             {courseResources.length > 0 && (
-                <Card className="mb-3.5 p-4">
-                    <h2 className="mb-2.5 text-base font-bold">
+                <Card className="mb-4 p-5">
+                    <h2 className="mb-3 text-base font-bold text-ink">
                         Course-level Resources
                     </h2>
                     <div className="grid gap-2">
@@ -68,20 +78,21 @@ export default function Show({ course, courseResources, sections, firstLessonId 
                 </Card>
             )}
 
-            <Card className="p-3.5">
-                <h2 className="mx-2 mb-3 mt-1 text-lg font-bold">Sections</h2>
-                <div className="grid gap-3">
-                    {sections.map((section) => (
-                        <article
-                            key={section.id}
-                            className="rounded-[14px] border border-line bg-white p-3 bg-[radial-gradient(120%_120%_at_100%_0%,rgba(39,69,138,0.08),transparent_55%)]"
-                        >
-                            <h3 className="mb-2.5 text-base font-bold">
+            <div className="grid gap-3">
+                {sections.map((section, i) => (
+                    <AnimatedContent
+                        key={section.id}
+                        distance={40}
+                        duration={0.5}
+                        delay={Math.min(i, 6) * 0.04}
+                    >
+                        <Card className="p-5">
+                            <h3 className="mb-3 text-base font-bold text-ink">
                                 {section.title}
                             </h3>
 
                             {section.lessons.length === 0 ? (
-                                <p className="m-0 mb-2 text-muted">
+                                <p className="m-0 text-sm text-muted">
                                     No videos in this section.
                                 </p>
                             ) : (
@@ -93,12 +104,15 @@ export default function Show({ course, courseResources, sections, firstLessonId 
                                                 'lessons.show',
                                                 lesson.id,
                                             )}
-                                            className="flex items-center justify-between gap-2.5 rounded-soft border border-line bg-[#fbfdff] px-3 py-2.5 transition hover:-translate-y-px hover:border-line-strong"
+                                            className="group flex items-center justify-between gap-2.5 rounded-soft border border-line bg-elevated/40 px-3.5 py-3 transition hover:border-accent/50 hover:bg-elevated/80"
                                         >
-                                            <span className="text-[0.93rem]">
+                                            <span className="flex items-center gap-2.5 text-[0.93rem] text-ink">
+                                                <span className="text-accent opacity-60 transition group-hover:opacity-100">
+                                                    ▶
+                                                </span>
                                                 {lesson.display_title}
                                             </span>
-                                            <span className="text-[0.85rem] text-muted">
+                                            <span className="text-[0.82rem] tabular-nums text-muted">
                                                 {lesson.duration_seconds
                                                     ? formatClock(
                                                           lesson.duration_seconds,
@@ -112,7 +126,7 @@ export default function Show({ course, courseResources, sections, firstLessonId 
 
                             {section.resources.length > 0 && (
                                 <div className="mt-3">
-                                    <div className="mb-1.5 text-[0.85rem] text-muted">
+                                    <div className="mb-1.5 text-[0.8rem] uppercase tracking-wide text-muted">
                                         Section resources
                                     </div>
                                     <div className="grid gap-1.5">
@@ -126,10 +140,10 @@ export default function Show({ course, courseResources, sections, firstLessonId 
                                     </div>
                                 </div>
                             )}
-                        </article>
-                    ))}
-                </div>
-            </Card>
+                        </Card>
+                    </AnimatedContent>
+                ))}
+            </div>
 
             <ResourcePreviewDialog
                 resource={previewResource}

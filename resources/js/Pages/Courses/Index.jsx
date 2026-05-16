@@ -2,9 +2,23 @@ import { Head, Link } from '@inertiajs/react';
 import { route } from 'ziggy-js';
 import AppLayout from '@/Layouts/AppLayout';
 import Card from '@/Components/ui/Card';
-import Badge from '@/Components/ui/Badge';
-import Reveal from '@/Components/effects/Reveal';
-import SpotlightCard from '@/Components/effects/SpotlightCard';
+import GradientText from '@/Components/reactbits/GradientText';
+import CountUp from '@/Components/reactbits/CountUp';
+import SpotlightCard from '@/Components/reactbits/SpotlightCard';
+import AnimatedContent from '@/Components/reactbits/AnimatedContent';
+
+function Metric({ value, label }) {
+    return (
+        <div className="rounded-soft border border-line bg-elevated/40 px-4 py-3 text-center">
+            <div className="text-2xl font-extrabold text-ink">
+                <CountUp to={value} />
+            </div>
+            <div className="text-[0.72rem] uppercase tracking-[0.12em] text-muted">
+                {label}
+            </div>
+        </div>
+    );
+}
 
 export default function Index({ courses, coursesRoot }) {
     const totalLessons = courses.reduce((n, c) => n + c.lessons_count, 0);
@@ -14,68 +28,76 @@ export default function Index({ courses, coursesRoot }) {
         <AppLayout>
             <Head title="Courses" />
 
-            <Reveal as={Card} className="mb-4 p-5">
-                <div className="flex flex-wrap items-start justify-between gap-3">
+            <Card className="relative mb-6 overflow-hidden p-8">
+                <div className="pointer-events-none absolute -right-24 -top-24 h-72 w-72 rounded-full bg-accent/20 blur-3xl" />
+                <div className="relative flex flex-wrap items-end justify-between gap-6">
                     <div>
-                        <p className="text-xs font-bold uppercase tracking-[0.1em] text-[#0c5d80]">
+                        <p className="text-xs font-bold uppercase tracking-[0.18em] text-accent">
                             Library
                         </p>
-                        <h1 className="my-1.5 text-2xl font-extrabold">
-                            Course Vault
+                        <h1 className="mt-2 text-4xl font-extrabold leading-tight">
+                            <GradientText>Course Vault</GradientText>
                         </h1>
-                        <p className="m-0 max-w-[72ch] text-muted">
-                            Browse imported courses and continue learning where
-                            you left off.
+                        <p className="mt-2 max-w-[60ch] text-muted">
+                            Browse your imported courses and continue learning
+                            where you left off.
                         </p>
                     </div>
-                    <div className="flex flex-wrap gap-2">
-                        <Badge>{courses.length} courses</Badge>
-                        <Badge tone="info">{totalLessons} lessons</Badge>
-                        <Badge tone="warm">{totalResources} resources</Badge>
+                    <div className="grid grid-cols-3 gap-3">
+                        <Metric value={courses.length} label="Courses" />
+                        <Metric value={totalLessons} label="Lessons" />
+                        <Metric value={totalResources} label="Resources" />
                     </div>
                 </div>
-            </Reveal>
+            </Card>
 
             {courses.length === 0 ? (
-                <Card className="p-6">
-                    <p className="m-0">No courses found yet. Run:</p>
-                    <pre className="mt-2.5 overflow-auto rounded-soft bg-[#0f1d2f] p-3 text-sm text-[#ccf6de]">
+                <Card className="p-8">
+                    <p className="m-0 text-muted">No courses found yet. Run:</p>
+                    <pre className="mt-3 overflow-auto rounded-soft border border-line bg-black/40 p-3 text-sm text-accent-dark">
                         php artisan courses:scan {coursesRoot}
                     </pre>
                 </Card>
             ) : (
-                <div className="grid grid-cols-[repeat(auto-fill,minmax(290px,1fr))] gap-3.5">
+                <div className="grid grid-cols-[repeat(auto-fill,minmax(300px,1fr))] gap-4">
                     {courses.map((course, index) => (
-                        <Reveal key={course.id} delay={Math.min(index, 8) * 60}>
+                        <AnimatedContent
+                            key={course.id}
+                            distance={50}
+                            duration={0.6}
+                            delay={Math.min(index, 8) * 0.05}
+                        >
                             <SpotlightCard
                                 as="article"
-                                className="grid h-full gap-2.5 p-4 transition-[transform,box-shadow] duration-200 hover:-translate-y-0.5 hover:shadow-[0_20px_34px_rgba(16,32,54,0.12)] bg-[radial-gradient(130%_120%_at_100%_0%,rgba(14,163,149,0.12),transparent_55%)]"
+                                className="flex h-full flex-col gap-3 p-5"
                             >
-                                <h2 className="relative m-0 text-[1.06rem] font-bold leading-snug">
+                                <h2 className="text-lg font-bold leading-snug text-ink">
                                     {course.display_title}
                                 </h2>
-                                <div className="relative flex flex-wrap gap-2">
-                                    <Badge>{course.lessons_count} lessons</Badge>
-                                    <Badge tone="info">
+                                <div className="flex flex-wrap gap-2 text-xs">
+                                    <span className="rounded-full border border-accent/30 bg-accent/10 px-2.5 py-1 font-semibold text-accent-dark">
+                                        {course.lessons_count} lessons
+                                    </span>
+                                    <span className="rounded-full border border-line-strong bg-elevated/60 px-2.5 py-1 font-semibold text-muted">
                                         {course.resources_count} resources
-                                    </Badge>
+                                    </span>
                                 </div>
                                 <div
-                                    className="relative truncate text-[0.82rem] text-muted"
+                                    className="truncate text-[0.8rem] text-muted"
                                     title={course.relative_path}
                                 >
                                     {course.relative_path}
                                 </div>
-                                <div className="relative">
+                                <div className="mt-auto pt-2">
                                     <Link
                                         href={route('courses.show', course.id)}
-                                        className="inline-flex items-center justify-center gap-2 rounded-soft bg-accent px-4 py-2 text-sm font-semibold text-white shadow-accent transition hover:brightness-105"
+                                        className="inline-flex items-center gap-2 rounded-soft bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-accent transition hover:bg-accent-dark"
                                     >
-                                        Open Course
+                                        Open Course →
                                     </Link>
                                 </div>
                             </SpotlightCard>
-                        </Reveal>
+                        </AnimatedContent>
                     ))}
                 </div>
             )}
