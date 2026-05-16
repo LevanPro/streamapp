@@ -109,7 +109,6 @@ export default function LessonPlayer({
                     title={title}
                     src={{ src, type: mimeType }}
                     playsInline
-                    storyboard={storyboardUrl || undefined}
                     onTimeUpdate={() => saveProgress(false)}
                     onPause={() => saveProgress(true)}
                     onEnded={() => saveProgress(true)}
@@ -124,7 +123,10 @@ export default function LessonPlayer({
                             />
                         )}
                     </MediaProvider>
-                    <DefaultVideoLayout icons={defaultLayoutIcons} />
+                    <DefaultVideoLayout
+                        icons={defaultLayoutIcons}
+                        thumbnails={storyboardUrl || undefined}
+                    />
                 </MediaPlayer>
             </div>
 

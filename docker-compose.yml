@@ -11,10 +11,10 @@ services:
       dockerfile: docker/php/Dockerfile
     restart: unless-stopped
     working_dir: /var/www/html
-    volumes:
+    volumes: &app-volumes
       - ./:/var/www/html
       - ./courses:/srv/courses:ro
-    environment:
+    environment: &app-env
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: "${APP_DEBUG:-false}"
       APP_URL: ${APP_URL:-http://localhost:${WEB_PORT:-8081}}
@@ -32,6 +32,24 @@ services:
       QUEUE_CONNECTION: database
       COURSES_ROOT: /srv/courses
       COURSE_STREAM_DRIVER: ${COURSE_STREAM_DRIVER:-accel}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Processes queued jobs — notably GenerateLessonPreview (ffmpeg poster +
+  # timeline sprite + manifest). Without this, `courses:scan` enqueues
+  # preview jobs that never run and seek-bar thumbnails never appear.
+  # --max-time recycles the worker hourly (picks up code, frees memory);
+  # restart: unless-stopped brings it straight back.
+  queue:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes: *app-volumes
+    environment: *app-env
+    command: php artisan queue:work --sleep=3 --tries=2 --max-time=3600
     depends_on:
       db:
         condition: service_healthy
