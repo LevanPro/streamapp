@@ -1,12 +1,12 @@
 const VARIANTS = {
     primary:
-        'bg-accent text-white shadow-accent hover:brightness-105 active:translate-y-px',
+        'bg-accent text-accent-ink shadow-accent hover:bg-accent-dark active:translate-y-px',
     outline:
-        'bg-white/70 text-accent-dark border border-accent-dark/40 hover:bg-bg-glow/70',
+        'border border-line-strong bg-panel/60 text-ink backdrop-blur hover:border-accent/60 hover:text-accent',
     ghost:
-        'bg-transparent text-accent-dark hover:bg-accent-dark/10',
+        'bg-transparent text-muted hover:bg-elevated hover:text-ink',
     danger:
-        'bg-danger text-white hover:brightness-105',
+        'bg-danger text-white hover:brightness-110',
 };
 
 export default function Button({
@@ -20,7 +20,7 @@ export default function Button({
             type={type}
             className={[
                 'inline-flex items-center justify-center gap-2 rounded-soft px-4 py-2',
-                'text-sm font-semibold transition-[transform,filter,background-color] duration-150',
+                'text-sm font-semibold transition-[transform,filter,background-color,color] duration-150',
                 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-accent/40',
                 'disabled:cursor-not-allowed disabled:opacity-60',
                 VARIANTS[variant] ?? VARIANTS.primary,

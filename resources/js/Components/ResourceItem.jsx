@@ -2,9 +2,11 @@ import { route } from 'ziggy-js';
 
 export default function ResourceItem({ resource, onPreview }) {
     const streamUrl = route('stream.resources', resource.id);
+    const linkCls =
+        'text-[0.82rem] font-semibold text-accent-dark transition hover:text-accent';
 
     return (
-        <div className="flex items-center justify-between gap-2.5 rounded-soft border border-line bg-[#fbfdff] px-3 py-2.5">
+        <div className="flex items-center justify-between gap-2.5 rounded-soft border border-line bg-elevated/50 px-3 py-2.5 transition hover:border-line-strong">
             <span
                 className="truncate text-sm text-muted"
                 title={resource.display_title}
@@ -18,14 +20,11 @@ export default function ResourceItem({ resource, onPreview }) {
                         <button
                             type="button"
                             onClick={() => onPreview(resource)}
-                            className="rounded-soft border border-accent-dark/40 bg-white/70 px-2.5 py-1 text-[0.82rem] font-semibold text-accent-dark hover:bg-bg-glow/70"
+                            className="rounded-soft border border-line-strong bg-panel/60 px-2.5 py-1 text-[0.82rem] font-semibold text-ink transition hover:border-accent/60 hover:text-accent"
                         >
                             View
                         </button>
-                        <a
-                            href={streamUrl}
-                            className="text-[0.82rem] font-semibold text-[#27507f] hover:text-[#173253]"
-                        >
+                        <a href={streamUrl} className={linkCls}>
                             Download
                         </a>
                     </>
@@ -36,17 +35,14 @@ export default function ResourceItem({ resource, onPreview }) {
                         href={streamUrl}
                         target="_blank"
                         rel="noopener"
-                        className="text-[0.82rem] font-semibold text-[#27507f] hover:text-[#173253]"
+                        className={linkCls}
                     >
                         Open PDF
                     </a>
                 )}
 
                 {resource.kind === 'download' && (
-                    <a
-                        href={streamUrl}
-                        className="text-[0.82rem] font-semibold text-[#27507f] hover:text-[#173253]"
-                    >
+                    <a href={streamUrl} className={linkCls}>
                         Download
                     </a>
                 )}

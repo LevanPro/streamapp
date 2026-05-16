@@ -3,34 +3,82 @@
 @source '../../vendor/laravel/framework/src/Illuminate/Pagination/resources/views/*.blade.php';
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
-@source '../**/*.js';
 @source '../**/*.jsx';
 
-/* Design tokens — migrated from the old inline <style> in layouts/app.blade.php
-   into Tailwind 4 theme variables so utilities (bg-*, text-*, border-*,
-   rounded-*, shadow-*) are generated and the palette is themeable. */
+/* Class-based dark mode (manual toggle, not prefers-color-scheme). */
+@custom-variant dark (&:where(.dark, .dark *));
+
+/* Semantic tokens resolve to theme-switchable CSS variables so every
+   utility (bg-*, text-*, border-*) follows the active theme. Names are
+   kept stable from the prior light build to limit churn. */
 @theme {
     --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
         'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
 
-    --color-bg: #f4f8ff;
-    --color-bg-soft: #edf4ff;
-    --color-bg-glow: #def7f4;
-    --color-panel: #ffffff;
-    --color-ink: #102036;
-    --color-muted: #5d6d84;
-    --color-accent: #0ea395;
-    --color-accent-dark: #0a756a;
-    --color-line: #d3dff0;
-    --color-line-strong: #bfd0e6;
-    --color-danger: #be123c;
+    --color-bg: var(--c-bg);
+    --color-bg-soft: var(--c-bg-soft);
+    --color-panel: var(--c-surface);
+    --color-elevated: var(--c-surface-2);
+    --color-ink: var(--c-ink);
+    --color-muted: var(--c-muted);
+    --color-accent: var(--c-accent);
+    --color-accent-dark: var(--c-accent-strong);
+    --color-accent-ink: var(--c-accent-ink);
+    --color-line: var(--c-line);
+    --color-line-strong: var(--c-line-strong);
+    --color-danger: var(--c-danger);
 
     --radius-panel: 18px;
     --radius-soft: 12px;
 
-    --shadow-panel: 0 24px 50px rgba(16, 32, 54, 0.1);
-    --shadow-soft: 0 14px 30px rgba(16, 32, 54, 0.08);
-    --shadow-accent: 0 8px 20px rgba(14, 163, 149, 0.3);
+    --shadow-panel: 0 24px 60px rgba(0, 0, 0, 0.45);
+    --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.35);
+    --shadow-accent: 0 10px 30px var(--c-glow);
+}
+
+/* Dark (default) — emerald on near-black. */
+:root,
+.dark {
+    color-scheme: dark;
+    --c-bg: #080d12;
+    --c-bg-soft: #0a121a;
+    --c-surface: #111a22;
+    --c-surface-2: #17242e;
+    --c-line: #20303c;
+    --c-line-strong: #2c4150;
+    --c-ink: #e9f2f6;
+    --c-muted: #8aa1ad;
+    --c-accent: #10b981;
+    --c-accent-strong: #34d399;
+    --c-accent-ink: #04241b;
+    --c-danger: #fb7185;
+    --c-glow: rgba(16, 185, 129, 0.30);
+    --bg-image:
+        radial-gradient(60rem 60rem at 12% -10%, rgba(16, 185, 129, 0.12) 0%, transparent 55%),
+        radial-gradient(48rem 48rem at 92% 0%, rgba(45, 91, 138, 0.16) 0%, transparent 58%),
+        linear-gradient(180deg, #060a0e 0%, var(--c-bg) 55%, #060b10 100%);
+}
+
+/* Light. */
+.light {
+    color-scheme: light;
+    --c-bg: #f4f8ff;
+    --c-bg-soft: #edf4ff;
+    --c-surface: #ffffff;
+    --c-surface-2: #eef4ff;
+    --c-line: #d3dff0;
+    --c-line-strong: #bfd0e6;
+    --c-ink: #102036;
+    --c-muted: #5d6d84;
+    --c-accent: #0ea395;
+    --c-accent-strong: #0a756a;
+    --c-accent-ink: #ffffff;
+    --c-danger: #be123c;
+    --c-glow: rgba(14, 163, 149, 0.22);
+    --bg-image:
+        radial-gradient(46rem 46rem at 12% -5%, #def7f4 0%, transparent 58%),
+        radial-gradient(38rem 38rem at 92% 2%, #dbe8ff 0%, transparent 60%),
+        linear-gradient(180deg, #f7fbff 0%, var(--c-bg) 52%, var(--c-bg-soft) 100%);
 }
 
 @layer base {
@@ -41,14 +89,11 @@
 
     body {
         margin: 0;
-        color: var(--color-ink);
-        background:
-            radial-gradient(46rem 46rem at 12% -5%, var(--color-bg-glow) 0%, transparent 58%),
-            radial-gradient(38rem 38rem at 92% 2%, #dbe8ff 0%, transparent 60%),
-            linear-gradient(180deg, #f7fbff 0%, var(--color-bg) 52%, var(--color-bg-soft) 100%);
-        background-attachment: fixed;
+        color: var(--c-ink);
+        background: var(--bg-image) fixed;
         min-height: 100vh;
         overflow-x: hidden;
+        transition: background-color 0.3s ease, color 0.3s ease;
     }
 
     h1,
@@ -59,8 +104,39 @@
     }
 
     ::selection {
-        background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+        background: color-mix(in srgb, var(--c-accent) 30%, transparent);
     }
+
+    ::-webkit-scrollbar {
+        width: 10px;
+        height: 10px;
+    }
+    ::-webkit-scrollbar-thumb {
+        background: var(--c-line-strong);
+        border-radius: 999px;
+    }
+    ::-webkit-scrollbar-track {
+        background: transparent;
+    }
+}
+
+/* ReactBits shared keyframes (vendored components). */
+@keyframes rb-shine {
+    0% { background-position: 100%; }
+    100% { background-position: -100%; }
+}
+@keyframes rb-gradient {
+    0% { background-position: 0% 50%; }
+    50% { background-position: 100% 50%; }
+    100% { background-position: 0% 50%; }
+}
+@keyframes rb-star-top {
+    0% { transform: translate(0, 0); opacity: 1; }
+    100% { transform: translate(-100%, 0); opacity: 0; }
+}
+@keyframes rb-star-bottom {
+    0% { transform: translate(0, 0); opacity: 1; }
+    100% { transform: translate(100%, 0); opacity: 0; }
 }
 
 @media (prefers-reduced-motion: reduce) {

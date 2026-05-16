@@ -60,19 +60,21 @@ export default function ResourcePreviewDialog({ resource, onClose }) {
 
     return (
         <div
-            className="fixed inset-0 z-[1200] bg-[rgba(3,11,18,0.66)] p-[18px]"
+            className="fixed inset-0 z-[1200] bg-black/70 p-[18px] backdrop-blur-sm"
             onClick={(event) => event.target === event.currentTarget && onClose()}
             role="dialog"
             aria-modal="true"
             aria-label={resource.display_title}
         >
-            <div className="mx-auto flex max-h-[95vh] w-[min(960px,98vw)] flex-col rounded-panel border border-line bg-panel shadow-panel">
+            <div className="mx-auto flex max-h-[95vh] w-[min(960px,98vw)] flex-col rounded-panel border border-line-strong bg-panel shadow-panel">
                 <div className="flex items-center justify-between gap-2.5 border-b border-line px-3.5 py-3">
-                    <strong className="truncate">{resource.display_title}</strong>
+                    <strong className="truncate text-ink">
+                        {resource.display_title}
+                    </strong>
                     <button
                         type="button"
                         onClick={onClose}
-                        className="rounded-soft border border-accent-dark/40 bg-white/70 px-2.5 py-1.5 text-sm font-semibold text-accent-dark hover:bg-bg-glow/70"
+                        className="rounded-soft border border-line-strong bg-elevated/60 px-2.5 py-1.5 text-sm font-semibold text-ink transition hover:border-accent/60 hover:text-accent"
                     >
                         Close
                     </button>

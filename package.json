@@ -17,6 +17,9 @@
     "dependencies": {
         "@inertiajs/react": "^2.3.23",
         "@vidstack/react": "^1.12.13",
+        "framer-motion": "^12.38.0",
+        "gsap": "^3.15.0",
+        "ogl": "^1.0.11",
         "react": "^19.2.6",
         "react-dom": "^19.2.6"
     }

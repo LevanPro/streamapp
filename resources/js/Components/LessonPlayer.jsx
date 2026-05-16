@@ -103,7 +103,10 @@ export default function LessonPlayer({
 
     return (
         <div className="grid gap-2.5">
-            <div className="overflow-hidden rounded-[15px] border border-line shadow-[0_18px_28px_rgba(5,22,35,0.32)]">
+            <div
+                className="overflow-hidden rounded-panel border border-line-strong shadow-panel"
+                style={{ '--media-brand': 'var(--c-accent)' }}
+            >
                 <MediaPlayer
                     ref={player}
                     title={title}
@@ -131,12 +134,14 @@ export default function LessonPlayer({
             </div>
 
             {showResume && (
-                <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-panel border border-[#89e6dc] bg-gradient-to-br from-[#f3fffd] to-[#e2fbf7] p-2.5">
-                    <span>Resume from your last position?</span>
+                <div className="flex flex-wrap items-center justify-between gap-2.5 rounded-panel border border-accent/40 bg-accent/10 p-3 backdrop-blur">
+                    <span className="text-sm text-ink">
+                        Resume from your last position?
+                    </span>
                     <button
                         type="button"
                         onClick={resume}
-                        className="inline-flex items-center justify-center gap-2 rounded-soft bg-accent px-4 py-2 text-sm font-semibold text-white shadow-accent transition hover:brightness-105"
+                        className="inline-flex items-center justify-center gap-2 rounded-soft bg-accent px-4 py-2 text-sm font-semibold text-accent-ink shadow-accent transition hover:bg-accent-dark"
                     >
                         Resume
                     </button>
