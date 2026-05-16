@@ -3,12 +3,15 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\CourseResource;
+use App\Models\CourseSection;
 use App\Models\Lesson;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class CourseController extends Controller
 {
-    public function index(): View
+    public function index(): Response
     {
         $courses = Course::query()
             ->visible()
@@ -20,12 +23,19 @@ class CourseController extends Controller
             ->orderBy('display_title')
             ->get();
 
-        return view('courses.index', [
-            'courses' => $courses,
+        return Inertia::render('Courses/Index', [
+            'courses' => $courses->map(fn (Course $course): array => [
+                'id' => $course->id,
+                'display_title' => $course->display_title,
+                'relative_path' => $course->relative_path,
+                'lessons_count' => $course->lessons_count,
+                'resources_count' => $course->resources_count,
+            ])->values(),
+            'coursesRoot' => config('courses.root'),
         ]);
     }
 
-    public function show(Course $course): View
+    public function show(Course $course): Response
     {
         abort_if($course->is_missing, 404);
 
@@ -59,9 +69,30 @@ class CourseController extends Controller
             ->orderBy('lessons.sort_index')
             ->first();
 
-        return view('courses.show', [
-            'course' => $course,
-            'firstLesson' => $firstLesson,
+        return Inertia::render('Courses/Show', [
+            'course' => [
+                'id' => $course->id,
+                'display_title' => $course->display_title,
+                'relative_path' => $course->relative_path,
+            ],
+            'courseResources' => $course->resources
+                ->map(fn (CourseResource $resource): array => $resource->toPayload())
+                ->values(),
+            'sections' => $course->sections->map(fn (CourseSection $section): array => [
+                'id' => $section->id,
+                'title' => $section->relative_path === CourseSection::ROOT_RELATIVE_PATH
+                    ? 'General'
+                    : $section->display_title,
+                'lessons' => $section->lessons->map(fn (Lesson $lesson): array => [
+                    'id' => $lesson->id,
+                    'display_title' => $lesson->display_title,
+                    'duration_seconds' => $lesson->duration_seconds,
+                ])->values(),
+                'resources' => $section->resources
+                    ->map(fn (CourseResource $resource): array => $resource->toPayload())
+                    ->values(),
+            ])->values(),
+            'firstLessonId' => $firstLesson?->id,
         ]);
     }
 }

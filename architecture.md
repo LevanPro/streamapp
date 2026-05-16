@@ -25,7 +25,7 @@ A `laravel` driver is also available for `php artisan serve` (streams bytes thro
 - **PHP** 8.4 / **Laravel** 13.7
 - **MySQL** 8.4 (metadata + sessions + cache + queue)
 - **Nginx** 1.27-alpine (reverse proxy + protected media)
-- **Frontend**: Blade + Tailwind CSS 4 via Vite 8 (no SPA framework)
+- **Frontend**: Inertia.js 2 + React 19 + Tailwind CSS 4 via Vite 8 (`@vitejs/plugin-react`); Ziggy for named routes; Vidstack 1 video player. Single root Blade view (`app.blade.php`); no separate API.
 - **Media tooling**: optional `ffmpeg` / `ffprobe` for duration, posters, and timeline-preview sprites
 - **Auth**: stock Laravel session auth (no Breeze/Jetstream/Sanctum) — custom `AuthenticatedSessionController`
 
@@ -53,8 +53,14 @@ database/migrations/                          # users/cache/jobs + create_course
 docker/
 ├── nginx/default.conf                        # /_protected_media internal location
 └── php/                                      # Dockerfile + entrypoint (installs ffmpeg)
-docker-compose.yml                            # app (php-fpm) + nginx + db
-resources/views/                              # Blade templates (auth, courses, lessons, partials)
+docker-compose.yml                            # app (php-fpm) + nginx + db + assets (build profile)
+resources/views/app.blade.php                 # single Inertia root view
+resources/js/
+├── app.jsx                                   # Inertia bootstrap (createInertiaApp)
+├── Pages/                                     # Auth/Login, Courses/Index, Courses/Show, Lessons/Show
+├── Layouts/AppLayout.jsx                      # authed shell (topbar, logout, background)
+├── Components/                                # LessonPlayer (Vidstack), Resource* , ui/*, effects/*
+└── lib/format.js
 routes/web.php                                # all routes (no api.php in active use)
 storage/app/private/course-previews/          # generated posters, sprites, manifests
 ```
@@ -101,6 +107,7 @@ All defined in `routes/web.php`. Everything except login is behind `auth` middle
 | GET | `/lessons/{lesson}/thumbnail` | `StreamController::lessonThumbnail` |
 | GET | `/lessons/{lesson}/preview-manifest` | `StreamController::lessonPreviewManifest` |
 | GET | `/lessons/{lesson}/preview-sprite` | `StreamController::lessonPreviewSprite` |
+| GET | `/lessons/{lesson}/preview-storyboard` | `StreamController::lessonPreviewStoryboard` (WebVTT for Vidstack) |
 
 ## 6. Streaming subsystem
 
@@ -156,18 +163,20 @@ The frontend (`resources/views/lessons/show.blade.php`) fetches the manifest via
 
 ## 10. Docker topology
 
-`docker-compose.yml` defines three services:
+`docker-compose.yml` defines:
 
 | Service | Image / build | Role |
 |---|---|---|
 | `app` | `docker/php/Dockerfile` (php-fpm + ffmpeg + composer deps) | Runs Laravel |
-| `nginx` | `nginx:1.27-alpine` | Public port `${WEB_PORT:-8080}:80`; serves Laravel and protected media |
+| `queue` | same image as `app` | `php artisan queue:work` — **runs `GenerateLessonPreview`** (ffmpeg poster/sprite/manifest). Without it, scan-enqueued preview jobs never run and seek-bar thumbnails never appear. Shares `app`'s env/volumes via YAML anchors; `--max-time=3600` + `restart: unless-stopped` recycle it hourly. |
+| `nginx` | `nginx:1.27-alpine` | Public port `${WEB_PORT:-8081}:80`; serves Laravel and protected media |
 | `db` | `mysql:8.4` | Exposed on host `3307`; healthcheck via `mysqladmin ping` |
+| `assets` | `node:22-bookworm-slim` | One-shot frontend build, `build` profile only (not started by `up`). |
 
 Volume mounts:
 
-- `./` → `/var/www/html` (code, rw in `app`, ro in `nginx`)
-- `./courses` → `/srv/courses` **read-only** in both `app` and `nginx`
+- `./` → `/var/www/html` (code; rw in `app`/`queue`, ro in `nginx`)
+- `./courses` → `/srv/courses` **read-only** in `app`, `queue`, and `nginx` (the `queue` worker needs the media files to generate previews — local `docker-compose.override.yml` must remap the same path for `queue` too)
 - `./docker/nginx/default.conf` → `/etc/nginx/conf.d/default.conf:ro`
 - Named volume `db_data` → `/var/lib/mysql`
 
@@ -175,15 +184,17 @@ Compose env pins `COURSE_STREAM_DRIVER=accel`, `SESSION_DRIVER=database`, `CACHE
 
 ## 11. Frontend
 
-- Vite + Tailwind 4 (`vite.config.js`, `resources/css`, `resources/js`).
-- Blade templates only; no SPA framework.
-- Key pages:
-  - `auth/login.blade.php` — login form
-  - `courses/index.blade.php` — course grid with counts
-  - `courses/show.blade.php` — sections + lessons + resources tree
-  - `lessons/show.blade.php` — HTML5 player, sidebar nav, resume position, hover-preview sprite logic
-  - `partials/resource-item.blade.php`, `partials/resource-preview-modal.blade.php` — PDF/text/download UX
-  - `layouts/app.blade.php` — base layout
+- **Inertia.js 2 + React 19**, Vite 8 (`@vitejs/plugin-react`), Tailwind 4 with design tokens migrated into an `@theme` block in `resources/css/app.css`.
+- Controllers return `Inertia::render('Page', props)`; `App\Http\Middleware\HandleInertiaRequests` shares `auth.user` + `flash`. Single root view `resources/views/app.blade.php` (`@routes @viteReactRefresh @vite @inertia`).
+- Ziggy: `@routes` + a `ziggy-js` Vite alias so React calls `route('name', id)`.
+- Pages (`resources/js/Pages`):
+  - `Auth/Login.jsx` — Inertia `useForm`; validation/throttle errors via shared `errors`.
+  - `Courses/Index.jsx` — course grid (Spotlight cards, staggered reveal).
+  - `Courses/Show.jsx` — sections/lessons/resources tree.
+  - `Lessons/Show.jsx` — Vidstack player, sidebar nav, lesson resources.
+- `Components/LessonPlayer.jsx` — Vidstack `MediaPlayer` (`src=/stream/lessons/{id}`); seek-bar thumbnails via `DefaultVideoLayout`'s **`thumbnails` prop** (a `ThumbnailSrc` string = the `preview-storyboard` WebVTT URL; Vidstack 1.x has no `storyboard` prop). Resume banner; throttled progress POST to `/progress/{lesson}` (CSRF via `<meta>` token).
+- `Components/effects/*` — dependency-free ReactBits-style accents (Reveal, SpotlightCard, AuroraBackground), all `prefers-reduced-motion` safe.
+- The legacy vanilla `lesson-player.js` and all Blade page templates were removed; the ffmpeg sprite/manifest pipeline is unchanged — Vidstack just consumes a WebVTT view of the existing manifest.
 
 ## 12. Configuration surface (`.env`)
 
@@ -212,11 +223,13 @@ The streaming and scan behaviour is driven entirely by env:
 - PHPUnit configured in `phpunit.xml`; run via `php artisan test`.
 - Tests use SQLite by default (requires `pdo_sqlite` for the PHP CLI).
 - `.phpunit.result.cache` is committed alongside, indicating regular local runs.
+- Page tests assert Inertia responses via `Inertia\Testing\AssertableInertia` (component + props); `LessonPreviewStoryboardTest` covers the WebVTT endpoint. Note: a set of pre-existing failures unrelated to the frontend (test-env CSRF 419 on `POST` login/progress; one scanner `is_missing` rescan case; two `response()->file` cache-header asserts) predate the Inertia migration and are out of scope here.
 
 ## 15. Operational notes
 
 - First-time setup: `composer install`, `cp .env.example .env`, `php artisan key:generate`, `php artisan migrate`.
+- **Frontend build is mandatory** (Inertia/React): `npm run build` locally, or `docker compose --profile build run --rm assets` on the server (pinned `node:22`, no host Node). `@vite` 500s ("Vite manifest not found") until `public/build` exists. Re-run on any JS/CSS/React change; codified into the deploy runbook.
 - Create the single user with `php artisan tinker` (no registration UI).
-- After dropping new files into `./courses`, re-run `php artisan courses:scan /srv/courses --with-thumbnails` to refresh metadata and previews.
+- After dropping new files into `./courses`, re-run `php artisan courses:scan /srv/courses --with-thumbnails` to refresh metadata; the **`queue` service** then generates posters/sprites/manifests asynchronously (ffmpeg). It must be running (`docker compose up -d` starts it) or thumbnails never appear — `courses:scan` only enqueues the jobs. Watch progress: `Lesson::whereNotNull('preview_manifest_path')->count()`.
 - For local dev without Nginx: set `COURSE_STREAM_DRIVER=laravel`.
 - In production behind Nginx: keep `COURSE_STREAM_DRIVER=accel` and ensure the `internal` location is configured (see `docs/nginx-course-library.conf`).

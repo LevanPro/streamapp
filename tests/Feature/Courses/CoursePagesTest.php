@@ -7,6 +7,7 @@ use App\Models\CourseSection;
 use App\Models\Lesson;
 use App\Models\User;
 use Illuminate\Foundation\Testing\RefreshDatabase;
+use Inertia\Testing\AssertableInertia as Assert;
 use Tests\TestCase;
 
 class CoursePagesTest extends TestCase
@@ -59,16 +60,31 @@ class CoursePagesTest extends TestCase
         $this->actingAs($user)
             ->get(route('courses.index'))
             ->assertOk()
-            ->assertSee('My Course A');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Courses/Index')
+                ->where('courses.0.display_title', 'My Course A')
+                ->where('courses.0.lessons_count', 1)
+            );
 
         $this->actingAs($user)
             ->get(route('courses.show', $course))
             ->assertOk()
-            ->assertSee('Lesson 1');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Courses/Show')
+                ->where('course.display_title', 'My Course A')
+                ->where('sections.0.lessons.0.display_title', 'Lesson 1')
+                ->where('firstLessonId', $lesson->id)
+            );
 
         $this->actingAs($user)
             ->get(route('lessons.show', $lesson))
             ->assertOk()
-            ->assertSee('Lesson 1');
+            ->assertInertia(fn (Assert $page) => $page
+                ->component('Lessons/Show')
+                ->where('lesson.id', $lesson->id)
+                ->where('lesson.display_title', 'Lesson 1')
+                ->where('lesson.mime_type', 'video/mp4')
+                ->where('savedPosition', 0)
+            );
     }
 }

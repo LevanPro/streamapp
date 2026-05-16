@@ -1,6 +1,9 @@
-# Private Video Course Library (Laravel + Nginx)
+# Private Video Course Library (Laravel + Inertia/React + Nginx)
 
 Private Laravel application for browsing and watching locally uploaded course files on a VPS.
+The UI is an Inertia.js + React 19 single-page front-end (Tailwind 4), with a
+Vidstack video player; Laravel still owns routing, auth, metadata and the
+`X-Accel-Redirect` streaming path.
 
 ## What This App Does
 
@@ -25,8 +28,12 @@ Private Laravel application for browsing and watching locally uploaded course fi
 ## Architecture
 
 - **Laravel**:
-  - Auth, course metadata, section/lesson/resource indexing, access checks, UI.
-  - Returns protected internal URLs via `X-Accel-Redirect`.
+  - Auth, course metadata, section/lesson/resource indexing, access checks.
+  - Renders pages as Inertia responses; returns protected internal URLs via `X-Accel-Redirect`.
+- **Frontend (Inertia + React)**:
+  - React 19 SPA driven by Inertia.js — no separate API, session auth unchanged.
+  - Tailwind 4 design tokens; Vidstack player with seek-bar thumbnail previews.
+  - Ziggy exposes named routes to React.
 - **Nginx**:
   - Serves actual file bytes directly from disk (`/srv/courses` by default).
   - Handles byte-range requests for video seeking (no PHP streaming).
@@ -101,7 +108,18 @@ docker compose exec app php artisan key:generate
 docker compose exec app php artisan migrate --force
 ```
 
-4. Open app:
+4. Build frontend assets (reproducible, pinned Node, no host Node required):
+
+```bash
+docker compose --profile build run --rm assets
+```
+
+This one-shot `assets` service runs `npm ci && npm run build` into the
+bind-mounted `public/build`. It is **not** started by `docker compose up`.
+Re-run it whenever JS/CSS/React sources change. (Local dev with host Node
+can use `npm run dev` / `npm run build` directly instead.)
+
+5. Open app:
 
 ```text
 http://localhost:8080
@@ -120,7 +138,7 @@ $env:WEB_PORT=8081
 docker compose up -d --build
 ```
 
-5. Scan mounted course files (generate poster + timeline hover previews):
+6. Scan mounted course files (generate poster + timeline hover previews):
 
 ```bash
 docker compose exec app php artisan courses:scan /srv/courses --with-thumbnails
@@ -195,6 +213,7 @@ This avoids full-file download and makes seeking fast.
 - `GET /lessons/{lesson}/thumbnail`
 - `GET /lessons/{lesson}/preview-manifest`
 - `GET /lessons/{lesson}/preview-sprite`
+- `GET /lessons/{lesson}/preview-storyboard` (WebVTT storyboard consumed by the Vidstack seek bar)
 
 All course/media routes require authentication.
 
@@ -229,6 +248,31 @@ If `ffmpeg` exists and previews are enabled, scanner generates:
 - lesson poster images (`poster=...`)
 - timeline hover preview sprites + JSON manifests
 If tools are missing, scan still succeeds and metadata fields remain nullable.
+
+## Frontend Development
+
+The UI is Inertia.js + React 19 (Tailwind 4, Vidstack player). Pages live in
+`resources/js/Pages/**`, shared UI in `resources/js/Components`, the shell in
+`resources/js/Layouts/AppLayout.jsx`.
+
+```bash
+npm install        # host Node (one-time)
+npm run dev        # Vite dev server with React Fast Refresh
+npm run build      # production bundle into public/build
+```
+
+In Docker (no host Node), build via the codified profile service instead:
+
+```bash
+docker compose --profile build run --rm assets
+```
+
+Notes:
+
+- `@routes` (Ziggy) exposes named routes to React via `import { route } from 'ziggy-js'`.
+- The `public/build` directory is gitignored and produced at build time —
+  the build step is **mandatory** on every deploy with frontend changes.
+- All animations honour `prefers-reduced-motion`.
 
 ## Testing
 

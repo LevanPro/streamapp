@@ -4,8 +4,71 @@
 @source '../../storage/framework/views/*.php';
 @source '../**/*.blade.php';
 @source '../**/*.js';
+@source '../**/*.jsx';
 
+/* Design tokens — migrated from the old inline <style> in layouts/app.blade.php
+   into Tailwind 4 theme variables so utilities (bg-*, text-*, border-*,
+   rounded-*, shadow-*) are generated and the palette is themeable. */
 @theme {
-    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif, 'Apple Color Emoji', 'Segoe UI Emoji',
-        'Segoe UI Symbol', 'Noto Color Emoji';
+    --font-sans: 'Instrument Sans', ui-sans-serif, system-ui, sans-serif,
+        'Apple Color Emoji', 'Segoe UI Emoji', 'Segoe UI Symbol', 'Noto Color Emoji';
+
+    --color-bg: #f4f8ff;
+    --color-bg-soft: #edf4ff;
+    --color-bg-glow: #def7f4;
+    --color-panel: #ffffff;
+    --color-ink: #102036;
+    --color-muted: #5d6d84;
+    --color-accent: #0ea395;
+    --color-accent-dark: #0a756a;
+    --color-line: #d3dff0;
+    --color-line-strong: #bfd0e6;
+    --color-danger: #be123c;
+
+    --radius-panel: 18px;
+    --radius-soft: 12px;
+
+    --shadow-panel: 0 24px 50px rgba(16, 32, 54, 0.1);
+    --shadow-soft: 0 14px 30px rgba(16, 32, 54, 0.08);
+    --shadow-accent: 0 8px 20px rgba(14, 163, 149, 0.3);
+}
+
+@layer base {
+    html,
+    body {
+        min-height: 100%;
+    }
+
+    body {
+        margin: 0;
+        color: var(--color-ink);
+        background:
+            radial-gradient(46rem 46rem at 12% -5%, var(--color-bg-glow) 0%, transparent 58%),
+            radial-gradient(38rem 38rem at 92% 2%, #dbe8ff 0%, transparent 60%),
+            linear-gradient(180deg, #f7fbff 0%, var(--color-bg) 52%, var(--color-bg-soft) 100%);
+        background-attachment: fixed;
+        min-height: 100vh;
+        overflow-x: hidden;
+    }
+
+    h1,
+    h2,
+    h3,
+    h4 {
+        text-wrap: balance;
+    }
+
+    ::selection {
+        background: color-mix(in srgb, var(--color-accent) 28%, transparent);
+    }
+}
+
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.001ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.001ms !important;
+    }
 }

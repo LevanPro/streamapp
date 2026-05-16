@@ -11,10 +11,10 @@ services:
       dockerfile: docker/php/Dockerfile
     restart: unless-stopped
     working_dir: /var/www/html
-    volumes:
+    volumes: &app-volumes
       - ./:/var/www/html
       - ./courses:/srv/courses:ro
-    environment:
+    environment: &app-env
       APP_ENV: ${APP_ENV:-production}
       APP_DEBUG: "${APP_DEBUG:-false}"
       APP_URL: ${APP_URL:-http://localhost:${WEB_PORT:-8081}}
@@ -32,6 +32,24 @@ services:
       QUEUE_CONNECTION: database
       COURSES_ROOT: /srv/courses
       COURSE_STREAM_DRIVER: ${COURSE_STREAM_DRIVER:-accel}
+    depends_on:
+      db:
+        condition: service_healthy
+
+  # Processes queued jobs — notably GenerateLessonPreview (ffmpeg poster +
+  # timeline sprite + manifest). Without this, `courses:scan` enqueues
+  # preview jobs that never run and seek-bar thumbnails never appear.
+  # --max-time recycles the worker hourly (picks up code, frees memory);
+  # restart: unless-stopped brings it straight back.
+  queue:
+    build:
+      context: .
+      dockerfile: docker/php/Dockerfile
+    restart: unless-stopped
+    working_dir: /var/www/html
+    volumes: *app-volumes
+    environment: *app-env
+    command: php artisan queue:work --sleep=3 --tries=2 --max-time=3600
     depends_on:
       db:
         condition: service_healthy
@@ -65,6 +83,20 @@ services:
       interval: 10s
       timeout: 5s
       retries: 10
+
+  # One-shot reproducible frontend build (pinned Node, no host Node required).
+  # NOT started by `docker compose up` — only via the `build` profile:
+  #   docker compose --profile build run --rm assets
+  # Writes compiled assets into the bind-mounted ./public/build so php-fpm and
+  # nginx serve them; this is the codified replacement for the ad-hoc
+  # `docker run node ...` step in the git-pull deploy runbook.
+  assets:
+    image: node:22-bookworm-slim
+    profiles: ["build"]
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm ci && npm run build"
 
 volumes:
   db_data:
