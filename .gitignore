@@ -1,8 +1,10 @@
 *.log
+*.bak
 .DS_Store
 .env
 .env.backup
 .env.production
+/courses/
 .phpactor.json
 .phpunit.result.cache
 /.codex
