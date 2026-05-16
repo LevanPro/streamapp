@@ -158,6 +158,69 @@ class StreamController extends Controller
         ]);
     }
 
+    /**
+     * WebVTT storyboard built from the existing preview manifest + sprite.
+     * Vidstack consumes this natively for seek-bar thumbnail previews, so
+     * the ffmpeg sprite pipeline stays untouched.
+     */
+    public function lessonPreviewStoryboard(Lesson $lesson): Response
+    {
+        $manifest = $this->loadLessonPreviewManifest($lesson);
+
+        $frameCount = (int) ($manifest['frame_count'] ?? 0);
+        $columns = max(1, (int) ($manifest['columns'] ?? 1));
+        $frameWidth = (int) ($manifest['frame_width'] ?? 0);
+        $frameHeight = (int) ($manifest['frame_height'] ?? 0);
+        $interval = (float) ($manifest['interval_seconds'] ?? 0);
+        $duration = (float) ($manifest['duration_seconds'] ?? 0);
+
+        if ($frameCount < 1 || $frameWidth < 1 || $frameHeight < 1 || $interval <= 0) {
+            abort(404);
+        }
+
+        $spriteUrl = route('lessons.preview.sprite', $lesson);
+
+        $lines = ['WEBVTT', ''];
+        for ($i = 0; $i < $frameCount; $i++) {
+            $start = $i * $interval;
+            $end = $duration > 0
+                ? min(($i + 1) * $interval, $duration)
+                : ($i + 1) * $interval;
+            if ($end <= $start) {
+                $end = $start + $interval;
+            }
+
+            $column = $i % $columns;
+            $row = intdiv($i, $columns);
+            $x = $column * $frameWidth;
+            $y = $row * $frameHeight;
+
+            $lines[] = $this->vttTimestamp($start).' --> '.$this->vttTimestamp($end);
+            $lines[] = sprintf('%s#xywh=%d,%d,%d,%d', $spriteUrl, $x, $y, $frameWidth, $frameHeight);
+            $lines[] = '';
+        }
+
+        return response(implode("\n", $lines), 200, [
+            'Content-Type' => 'text/vtt; charset=UTF-8',
+            'Cache-Control' => 'private, max-age=86400',
+        ]);
+    }
+
+    private function vttTimestamp(float $seconds): string
+    {
+        $seconds = max(0.0, $seconds);
+        $hours = (int) floor($seconds / 3600);
+        $minutes = (int) floor(fmod($seconds, 3600) / 60);
+        $whole = (int) floor(fmod($seconds, 60));
+        $millis = (int) round(($seconds - floor($seconds)) * 1000);
+        if ($millis === 1000) {
+            $millis = 0;
+            $whole++;
+        }
+
+        return sprintf('%02d:%02d:%02d.%03d', $hours, $minutes, $whole, $millis);
+    }
+
     private function accelResponse(string $relativePath, string $mimeType, string $disposition, string $filename): Response
     {
         $encodedPath = $this->encodeForInternalUri($relativePath);

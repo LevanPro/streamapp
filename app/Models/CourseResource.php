@@ -39,4 +39,29 @@ class CourseResource extends Model
     {
         return $query->where('is_missing', false);
     }
+
+    /**
+     * Front-end payload shared by the course & lesson Inertia pages.
+     *
+     * @return array<string, mixed>
+     */
+    public function toPayload(): array
+    {
+        $extension = strtolower((string) ($this->extension
+            ?? pathinfo($this->filename, PATHINFO_EXTENSION)));
+
+        $kind = match (true) {
+            $extension === 'pdf' => 'pdf',
+            in_array($extension, ['txt', 'go'], true) => 'text',
+            default => 'download',
+        };
+
+        return [
+            'id' => $this->id,
+            'display_title' => $this->display_title,
+            'extension' => $extension,
+            'kind' => $kind,
+            'size_mb' => round($this->file_size_bytes / 1048576, 2),
+        ];
+    }
 }

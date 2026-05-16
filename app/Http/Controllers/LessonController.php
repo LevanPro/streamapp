@@ -3,14 +3,17 @@
 namespace App\Http\Controllers;
 
 use App\Models\Course;
+use App\Models\CourseResource;
+use App\Models\CourseSection;
 use App\Models\Lesson;
 use App\Models\LessonProgress;
 use Illuminate\Http\Request;
-use Illuminate\View\View;
+use Inertia\Inertia;
+use Inertia\Response;
 
 class LessonController extends Controller
 {
-    public function show(Request $request, Lesson $lesson): View
+    public function show(Request $request, Lesson $lesson): Response
     {
         $lesson->load([
             'course',
@@ -49,13 +52,37 @@ class LessonController extends Controller
             ->where('lesson_id', $lesson->id)
             ->first();
 
-        return view('lessons.show', [
-            'course' => $course,
-            'lesson' => $lesson,
-            'progress' => $progress,
-            'previousLesson' => $previousLesson,
-            'nextLesson' => $nextLesson,
-            'activeResources' => $lesson->resources,
+        return Inertia::render('Lessons/Show', [
+            'course' => [
+                'id' => $course->id,
+                'display_title' => $course->display_title,
+            ],
+            'lesson' => [
+                'id' => $lesson->id,
+                'display_title' => $lesson->display_title,
+                'section_title' => $lesson->section?->display_title ?? 'General',
+                'duration_seconds' => $lesson->duration_seconds,
+                'mime_type' => $lesson->mime_type ?: 'video/mp4',
+                'has_poster' => (bool) $lesson->thumbnail_path,
+                'has_storyboard' => (bool) $lesson->preview_manifest_path,
+            ],
+            'savedPosition' => (float) ($progress?->last_position_seconds ?? 0),
+            'previousLessonId' => $previousLesson?->id,
+            'nextLessonId' => $nextLesson?->id,
+            'activeResources' => $lesson->resources
+                ->map(fn (CourseResource $resource): array => $resource->toPayload())
+                ->values(),
+            'sidebar' => $course->sections->map(fn (CourseSection $section): array => [
+                'id' => $section->id,
+                'title' => $section->relative_path === CourseSection::ROOT_RELATIVE_PATH
+                    ? 'General'
+                    : $section->display_title,
+                'lessons' => $section->lessons->map(fn (Lesson $sectionLesson): array => [
+                    'id' => $sectionLesson->id,
+                    'display_title' => $sectionLesson->display_title,
+                    'duration_seconds' => $sectionLesson->duration_seconds,
+                ])->values(),
+            ])->values(),
         ]);
     }
 

@@ -66,5 +66,19 @@ services:
       timeout: 5s
       retries: 10
 
+  # One-shot reproducible frontend build (pinned Node, no host Node required).
+  # NOT started by `docker compose up` — only via the `build` profile:
+  #   docker compose --profile build run --rm assets
+  # Writes compiled assets into the bind-mounted ./public/build so php-fpm and
+  # nginx serve them; this is the codified replacement for the ad-hoc
+  # `docker run node ...` step in the git-pull deploy runbook.
+  assets:
+    image: node:22-bookworm-slim
+    profiles: ["build"]
+    working_dir: /app
+    volumes:
+      - ./:/app
+    command: sh -c "npm ci && npm run build"
+
 volumes:
   db_data:
